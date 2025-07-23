@@ -1,0 +1,7 @@
+account: 'user123'
+password: 'pass123'
+access_token: 'eyJhbGciOiJIUzUxMiJ9.eyJsb2dpbl91c2VyX2tleSI6Ijk5M2EyYzE3LTI2N2ItNGM2Yy1iYjE3LTM0ZDY0ZDJiNmJlZCJ9.Ar0ur0nTNZp5YiL13wtDACicraBLyCqu-J9aKcSARHc6cXNXX7W1yYld53GhzL5f1i4Yu8cgnN3Oj2mMdW3mMg'
+warehouse_id: '745'
+customer_ids:
+    - '37046'
+    - '4040'
