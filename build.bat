@@ -2,9 +2,7 @@
 echo 开始构建...
 
 REM 删除旧的构建文件
-if exist dmxsmart-auto-outbound.exe del dmxsmart-auto-outbound.exe
-if exist dmxsmart-auto-outbound.zip del dmxsmart-auto-outbound.zip
-if exist build del build
+if exist build rd /s /q build
 
 REM 构建程序
 echo 正在编译...
