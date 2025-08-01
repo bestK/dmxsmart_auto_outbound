@@ -25,8 +25,6 @@ if %errorlevel% equ 0 (
     )
 )
 
-REM 创建发布包
-echo 正在创建发布包...
 powershell -Command "Compress-Archive -Path dmxsmart-auto-outbound.exe,config.yaml -DestinationPath dmxsmart-auto-outbound.zip -Force"
 if %errorlevel% neq 0 (
     echo 创建ZIP文件失败！
