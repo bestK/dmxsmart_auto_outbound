@@ -1,4 +1,7 @@
 @echo off
+set CGO_ENABLED=0
+set GOOS=windows
+set GOARCH=amd64
 echo 开始构建...
 
 REM 删除旧的构建文件
@@ -6,7 +9,7 @@ if exist build rd /s /q build
 
 REM 构建程序
 echo 正在编译...
-go build -o dmxsmart-auto-outbound.exe main.go
+go build -ldflags="-s -w" -o dmxsmart-auto-outbound.exe main.go
 if %errorlevel% neq 0 (
     echo 构建失败！
     exit /b %errorlevel%
