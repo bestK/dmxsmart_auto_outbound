@@ -24,15 +24,6 @@ type Client struct {
 	config     *config.ConfigStruct
 }
 
-// Config holds the configuration for the DMXSmart client
-type Config struct {
-	AccessToken string
-	WarehouseID string
-	CustomerIDs []string
-	Username    string // 用户名
-	Password    string // 密码
-}
-
 // NewClient creates a new DMXSmart client
 func NewClient(config *config.ConfigStruct) *Client {
 	client := &Client{
