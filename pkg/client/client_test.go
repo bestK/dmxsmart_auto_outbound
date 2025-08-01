@@ -46,3 +46,25 @@ func TestLoginWithAutoOCR(t *testing.T) {
 
 	t.Logf("登录成功，token: %s", resp.Data.Token)
 }
+
+
+func TestValidateSession(t *testing.T) {
+	logger.Init()
+	configPath := filepath.Join("..", "..", "config.yaml")
+	config, err := config.LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	client := NewClient(config)
+	client.SetLogger(logger.Logger)
+
+	err = client.ValidateSession()
+	if err != nil {
+		t.Errorf("ValidateSession() error = %v", err)
+		return
+	}
+
+	t.Logf("ValidateSession() success")
+}
+

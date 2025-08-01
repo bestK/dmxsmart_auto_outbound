@@ -70,7 +70,7 @@ func (c *Client) ValidateSession() error {
 	url := fmt.Sprintf("%s/api/user/getUserInfo", c.baseURL)
 
 	resp, err := c.httpClient.R().
-		Post(url)
+		Get(url)
 
 	if err != nil {
 		return fmt.Errorf("failed to validate session: %w", err)
@@ -78,6 +78,16 @@ func (c *Client) ValidateSession() error {
 
 	if resp.StatusCode() != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+	}
+
+	var respData Response
+	err = json.Unmarshal(resp.Body(), &respData)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if !respData.Success {
+		return fmt.Errorf("validate session failed: %s", respData.ErrorMessage)
 	}
 
 	return nil
@@ -139,6 +149,11 @@ func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool) (
 // GetCaptcha retrieves a captcha image
 func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
 	url := fmt.Sprintf("%s/api/login/captcha", c.baseURL)
+
+	authHeader := c.httpClient.Header.Get("Authorization")
+	if authHeader != "" {
+		c.httpClient.Header.Del("Authorization")
+	}
 
 	resp, err := c.httpClient.R().
 		SetQueryParam("lang", "zh-CN").
@@ -208,6 +223,8 @@ func (c *Client) Login(username, password, captcha, uuid string) (*LoginResponse
 	// 如果登录成功，更新客户端的 token
 	if loginResp.Success {
 		c.httpClient.SetHeader("Authorization", "Bearer "+loginResp.Data.Token)
+		c.config.AccessToken = loginResp.Data.Token
+		config.SaveConfig()
 	}
 
 	return &loginResp, nil

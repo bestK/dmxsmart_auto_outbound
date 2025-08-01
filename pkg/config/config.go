@@ -19,6 +19,7 @@ type ConfigStruct struct {
 }
 
 var Config *ConfigStruct
+var ConfigPath string
 
 // LoadConfig loads configuration from a YAML file
 func LoadConfig(filename string) (*ConfigStruct, error) {
@@ -26,6 +27,8 @@ func LoadConfig(filename string) (*ConfigStruct, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
+
+	ConfigPath = filename
 
 	config := &ConfigStruct{}
 	if err := yaml.Unmarshal(data, config); err != nil {
@@ -38,13 +41,13 @@ func LoadConfig(filename string) (*ConfigStruct, error) {
 }
 
 // SaveConfig saves configuration to a YAML file
-func SaveConfig(filename string, config *ConfigStruct) error {
-	data, err := yaml.Marshal(config)
+func SaveConfig() error {
+	data, err := yaml.Marshal(Config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(filename, data, 0644); err != nil {
+	if err := os.WriteFile(ConfigPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
