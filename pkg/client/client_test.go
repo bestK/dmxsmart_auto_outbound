@@ -77,7 +77,7 @@ func TestGetWaitingPickOrders(t *testing.T) {
 	client := NewClient(config)
 	client.SetLogger(logger.Logger)
 
-	resp, err := client.GetWaitingPickOrders(1, 100, config.CustomerIDs)
+	resp, err := client.GetWaitingPickOrders(1, 20, config.CustomerIDs)
 	if err != nil {
 		t.Errorf("GetWaitingPickOrders() error = %v", err)
 		return

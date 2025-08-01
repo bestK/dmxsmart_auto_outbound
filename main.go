@@ -2,17 +2,28 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/bestk/dmxstart_auto_outbound/pkg/client"
 	"github.com/bestk/dmxstart_auto_outbound/pkg/config"
 	"github.com/bestk/dmxstart_auto_outbound/pkg/logger"
 )
 
+var banner = `
+___________________________________________________
+
+	DMXSTART AUTO OUTBOUND v0.0.1
+____________________________________________________
+
+`
+
 func main() {
 	logger.Init()
 
-	logger.Logger.Info("Starting application")
+	log := logger.Logger
+	log.Info("Starting...")
+
+	log.Info(banner)
 
 	// Load configuration
 	cfg, err := config.LoadConfig("config.yaml")
@@ -29,16 +40,27 @@ func main() {
 	}
 
 	// Get waiting pick orders
-	orders, err := dmxClient.GetWaitingPickOrders(1, 20, cfg.CustomerIDs)
+	orders, err := dmxClient.GetWaitingPickOrders(1, 100, cfg.CustomerIDs)
 	if err != nil {
 		log.Fatalf("Failed to get waiting pick orders: %v", err)
 	}
-	fmt.Printf("Waiting pick orders: %s\n", orders)
 
-	// Create pickup wave
-	// result, err := dmxClient.CreatePickupWave(true, 1, true)
-	// if err != nil {
-	// 	log.Fatalf("Failed to create pickup wave: %v", err)
-	// }
-	// fmt.Printf("Pickup wave created: %s\n", result)
+	log.Printf("Waiting pick orders: %d\n", orders.Total)
+
+	if orders.Total > 0 {
+		// Create pickup wave
+		_, err = dmxClient.CreatePickupWave(true, 1, true, cfg.CustomerIDs, "[DIY OUTBOUND BY BOT]")
+		if err != nil {
+			log.Fatalf("Failed to create pickup wave: %v", err)
+		}
+		log.Info("Pickup wave created")
+	} else {
+		log.Error("No waiting pick orders")
+	}
+
+	// 等待用户输入
+	log.Info("Press Enter to continue...")
+	fmt.Scanln()
+	// 退出
+	os.Exit(0)
 }

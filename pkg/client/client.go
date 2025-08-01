@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/bestk/dmxstart_auto_outbound/pkg/config"
@@ -95,7 +96,7 @@ func (c *Client) ValidateSession() error {
 }
 
 // GetWaitingPickOrders retrieves the list of waiting pick orders
-func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []int32) (WaitingPickOrderResponse, error) {
+func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []int) (WaitingPickOrderResponse, error) {
 	urlStr := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/listWaitingPickOrder", c.baseURL)
 
 	params := url.Values{}
@@ -107,7 +108,7 @@ func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []int32) (
 	params.Set("keyword", "")
 
 	for _, customerId := range customerIds {
-		params.Add("customerIds[]", string(customerId))
+		params.Add("customerIds[]", strconv.Itoa(customerId))
 	}
 
 	fullURL := fmt.Sprintf("%s?%s", urlStr, params.Encode())
@@ -129,11 +130,15 @@ func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []int32) (
 		return WaitingPickOrderResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
+	if !result.Success {
+		return WaitingPickOrderResponse{}, fmt.Errorf("get waiting pick orders failed: %s", result.ErrorMessage)
+	}
+
 	return result, nil
 }
 
 // CreatePickupWave creates a new pickup wave
-func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool, customerIds []int32, remark string) (CreatePickupWaveResponse, error) {
+func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool, customerIds []int, remark string) (CreatePickupWaveResponse, error) {
 	urlStr := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/createPickupWave", c.baseURL)
 
 	params := url.Values{}
@@ -144,7 +149,7 @@ func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool, c
 	params.Set("remark", remark)
 
 	for _, customerId := range customerIds {
-		params.Add("customerIds[]", string(customerId))
+		params.Add("customerIds[]", strconv.Itoa(customerId))
 	}
 
 	fullURL := fmt.Sprintf("%s?%s", urlStr, params.Encode())
