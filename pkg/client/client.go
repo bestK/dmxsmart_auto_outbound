@@ -1,12 +1,14 @@
 package client
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bestk/dmxstart_auto_outbound/pkg/config"
 	"github.com/bestk/dmxstart_auto_outbound/pkg/ocr"
@@ -26,8 +28,20 @@ type Client struct {
 // NewClient creates a new DMXSmart client
 func NewClient(config *config.ConfigStruct) *Client {
 	client := &Client{
-		httpClient: resty.New().SetDebug(config.Debug).SetBaseURL(BaseURL),
-		config:     config,
+		httpClient: resty.New().
+			SetDebug(config.Debug).
+			SetBaseURL(BaseURL).
+			// 设置超时
+			SetTimeout(time.Duration(config.Timeout) * time.Second).
+			// 设置重试
+			SetRetryCount(3).
+			SetRetryWaitTime(5 * time.Second).
+			SetRetryMaxWaitTime(20 * time.Second).
+			// 设置TLS配置
+			SetTLSClientConfig(&tls.Config{
+				MinVersion: tls.VersionTLS12,
+			}),
+		config: config,
 	}
 
 	// Set default headers

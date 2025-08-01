@@ -15,6 +15,7 @@ type ConfigStruct struct {
 	WarehouseID string `yaml:"warehouse_id"`
 	CustomerIDs []int  `yaml:"customer_ids"`
 	OcrEndpoint string `yaml:"ocr_endpoint"`
+	Timeout     int    `yaml:"timeout"`
 	Debug       bool   `yaml:"debug"`
 }
 

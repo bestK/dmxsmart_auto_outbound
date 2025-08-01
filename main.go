@@ -36,7 +36,13 @@ func main() {
 
 	err = dmxClient.ValidateSession()
 	if err != nil {
-		log.Fatalf("Failed to validate session: %v", err)
+		log.Errorf("Failed to validate session: %v", err)
+		log.Info("Try re-login...")
+		_, err := dmxClient.LoginWithAutoOCR(cfg.Account, cfg.Password)
+		if err != nil {
+			log.Fatalf("Failed to login: %v", err)
+		}
+		log.Info("Login successful")
 	}
 
 	// Get waiting pick orders
