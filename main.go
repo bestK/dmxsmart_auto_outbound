@@ -23,8 +23,13 @@ func main() {
 	// Create DMXSmart client
 	dmxClient := client.NewClient(cfg)
 
+	err = dmxClient.ValidateSession()
+	if err != nil {
+		log.Fatalf("Failed to validate session: %v", err)
+	}
+
 	// Get waiting pick orders
-	orders, err := dmxClient.GetWaitingPickOrders(1, 20)
+	orders, err := dmxClient.GetWaitingPickOrders(1, 20, cfg.CustomerIDs)
 	if err != nil {
 		log.Fatalf("Failed to get waiting pick orders: %v", err)
 	}

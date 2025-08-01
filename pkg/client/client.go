@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/bestk/dmxstart_auto_outbound/pkg/config"
@@ -94,22 +95,28 @@ func (c *Client) ValidateSession() error {
 }
 
 // GetWaitingPickOrders retrieves the list of waiting pick orders
-func (c *Client) GetWaitingPickOrders(page, pageSize int) (string, error) {
-	url := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/listWaitingPickOrder", c.baseURL)
+func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []string) (string, error) {
+	urlStr := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/listWaitingPickOrder", c.baseURL)
+
+	params := url.Values{}
+	params.Set("current", fmt.Sprintf("%d", page))
+	params.Set("pageSize", fmt.Sprintf("%d", pageSize))
+	params.Set("warehouseId", c.config.WarehouseID)
+	params.Set("keywordType", "referenceId")
+	params.Set("timeType", "createTime")
+	params.Set("keyword", "")
+
+	for _, customerId := range customerIds {
+		params.Add("customerIds[]", customerId)
+	}
+
+	fullURL := fmt.Sprintf("%s?%s", urlStr, params.Encode())
 
 	resp, err := c.httpClient.R().
-		SetQueryParams(map[string]string{
-			"current":     fmt.Sprintf("%d", page),
-			"pageSize":    fmt.Sprintf("%d", pageSize),
-			"warehouseId": c.config.WarehouseID,
-			"keywordType": "referenceId",
-			"timeType":    "createTime",
-			"keyword":     "",
-		}).
 		SetBody(map[string]string{
 			"keyword": "",
 		}).
-		Post(url)
+		Post(fullURL)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to get waiting pick orders: %w", err)
