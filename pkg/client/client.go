@@ -183,13 +183,13 @@ func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
 		c.httpClient.Header.Del("Authorization")
 	}
 
-	var captchaResp CaptchaResponse
+	var result CaptchaResponse
 
 	resp, err := c.httpClient.R().
 		SetQueryParam("lang", "zh-CN").
 		SetHeader("Accept", "application/json, text/plain, */*").
 		SetHeader("Referer", fmt.Sprintf("%s/user/login", BaseURL)).
-		SetResult(&captchaResp).
+		SetResult(&result).
 		Get(url)
 
 	if err != nil {
@@ -200,7 +200,7 @@ func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
-	return &captchaResp, nil
+	return &result, nil
 }
 
 // Login 执行登录操作
