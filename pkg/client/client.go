@@ -20,15 +20,13 @@ const (
 // Client represents a DMXSmart API client
 type Client struct {
 	httpClient *resty.Client
-	baseURL    string
 	config     *config.ConfigStruct
 }
 
 // NewClient creates a new DMXSmart client
 func NewClient(config *config.ConfigStruct) *Client {
 	client := &Client{
-		httpClient: resty.New().SetDebug(config.Debug),
-		baseURL:    BaseURL,
+		httpClient: resty.New().SetDebug(config.Debug).SetBaseURL(BaseURL),
 		config:     config,
 	}
 
@@ -60,7 +58,7 @@ func (c *Client) SetLogger(logger resty.Logger) {
 
 // validateSession validates the session
 func (c *Client) ValidateSession() error {
-	url := fmt.Sprintf("%s/api/user/getUserInfo", c.baseURL)
+	url := "/api/user/getUserInfo"
 
 	resp, err := c.httpClient.R().
 		Get(url)
@@ -88,7 +86,7 @@ func (c *Client) ValidateSession() error {
 
 // GetWaitingPickOrders retrieves the list of waiting pick orders
 func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []int) (WaitingPickOrderResponse, error) {
-	urlStr := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/listWaitingPickOrder", c.baseURL)
+	urlStr := "/api/tenant/outbound/pickupwave/listWaitingPickOrder"
 
 	params := url.Values{}
 	params.Set("current", fmt.Sprintf("%d", page))
@@ -130,7 +128,7 @@ func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []int) (Wa
 
 // CreatePickupWave creates a new pickup wave
 func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool, customerIds []int, remark string) (CreatePickupWaveResponse, error) {
-	urlStr := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/createPickupWave", c.baseURL)
+	urlStr := "/api/tenant/outbound/pickupwave/createPickupWave"
 
 	params := url.Values{}
 	params.Set("isAll", fmt.Sprintf("%t", isAll))
@@ -164,7 +162,7 @@ func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool, c
 
 // GetCaptcha retrieves a captcha image
 func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
-	url := fmt.Sprintf("%s/api/login/captcha", c.baseURL)
+	url := "/api/login/captcha"
 
 	authHeader := c.httpClient.Header.Get("Authorization")
 	if authHeader != "" {
@@ -176,7 +174,7 @@ func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
 	resp, err := c.httpClient.R().
 		SetQueryParam("lang", "zh-CN").
 		SetHeader("Accept", "application/json, text/plain, */*").
-		SetHeader("Referer", fmt.Sprintf("%s/user/login", c.baseURL)).
+		SetHeader("Referer", fmt.Sprintf("%s/user/login", BaseURL)).
 		SetResult(&captchaResp).
 		Get(url)
 
@@ -193,6 +191,8 @@ func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
 
 // Login 执行登录操作
 func (c *Client) Login(username, password, captcha, uuid string) (*LoginResponse, error) {
+	url := "/api/login/authenticate"
+
 	// 加密密码
 	encryptedPassword, err := encryptPassword(password)
 	if err != nil {
@@ -210,13 +210,11 @@ func (c *Client) Login(username, password, captcha, uuid string) (*LoginResponse
 		Lang:        "zh-CN",
 	}
 
-	url := fmt.Sprintf("%s/api/login/authenticate", c.baseURL)
-
 	var result LoginResponse
 	// 发送登录请求
 	resp, err := c.httpClient.R().
 		SetHeader("Accept", "application/json, text/plain, */*").
-		SetHeader("Referer", fmt.Sprintf("%s/user/login", c.baseURL)).
+		SetHeader("Referer", fmt.Sprintf("%s/user/login", BaseURL)).
 		SetHeader("Cookie", "locale=zh-CN").
 		SetBody(loginReq).
 		SetResult(&result).
