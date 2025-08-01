@@ -5,3 +5,5 @@ warehouse_id: '745'
 customer_ids:
     - '37046'
     - '4040'
+ocr_endpoint: ''
+debug: true

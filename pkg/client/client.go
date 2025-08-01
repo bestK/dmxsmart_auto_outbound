@@ -1,9 +1,13 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/bestk/dmxstart_auto_outbound/pkg/config"
+	"github.com/bestk/dmxstart_auto_outbound/pkg/ocr"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -15,7 +19,7 @@ const (
 type Client struct {
 	httpClient *resty.Client
 	baseURL    string
-	config     *Config
+	config     *config.ConfigStruct
 }
 
 // Config holds the configuration for the DMXSmart client
@@ -23,12 +27,14 @@ type Config struct {
 	AccessToken string
 	WarehouseID string
 	CustomerIDs []string
+	Username    string // 用户名
+	Password    string // 密码
 }
 
 // NewClient creates a new DMXSmart client
-func NewClient(config *Config) *Client {
+func NewClient(config *config.ConfigStruct) *Client {
 	client := &Client{
-		httpClient: resty.New(),
+		httpClient: resty.New().SetDebug(config.Debug),
 		baseURL:    BaseURL,
 		config:     config,
 	}
@@ -53,6 +59,28 @@ func NewClient(config *Config) *Client {
 	})
 
 	return client
+}
+
+func (c *Client) SetLogger(logger resty.Logger) {
+	c.httpClient.SetLogger(logger)
+}
+
+// validateSession validates the session
+func (c *Client) ValidateSession() error {
+	url := fmt.Sprintf("%s/api/user/getUserInfo", c.baseURL)
+
+	resp, err := c.httpClient.R().
+		Post(url)
+
+	if err != nil {
+		return fmt.Errorf("failed to validate session: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+	}
+
+	return nil
 }
 
 // GetWaitingPickOrders retrieves the list of waiting pick orders
@@ -106,4 +134,125 @@ func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool) (
 	}
 
 	return resp.String(), nil
+}
+
+// GetCaptcha retrieves a captcha image
+func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
+	url := fmt.Sprintf("%s/api/login/captcha", c.baseURL)
+
+	resp, err := c.httpClient.R().
+		SetQueryParam("lang", "zh-CN").
+		SetHeader("Accept", "application/json, text/plain, */*").
+		SetHeader("Referer", fmt.Sprintf("%s/user/login", c.baseURL)).
+		Get(url)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get captcha: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+	}
+
+	var captchaResp CaptchaResponse
+	if err := json.Unmarshal(resp.Body(), &captchaResp); err != nil {
+		return nil, fmt.Errorf("failed to parse captcha response: %w", err)
+	}
+
+	return &captchaResp, nil
+}
+
+// Login 执行登录操作
+func (c *Client) Login(username, password, captcha, uuid string) (*LoginResponse, error) {
+	// 加密密码
+	encryptedPassword, err := encryptPassword(password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt password: %w", err)
+	}
+
+	// 构建登录请求
+	loginReq := LoginRequest{
+		Username:    username,
+		Password:    encryptedPassword,
+		Captcha:     captcha,
+		UUID:        uuid,
+		LoginType:   "USERNAME",
+		DeviceToken: nil,
+		Lang:        "zh-CN",
+	}
+
+	url := fmt.Sprintf("%s/api/login/authenticate", c.baseURL)
+
+	// 发送登录请求
+	resp, err := c.httpClient.R().
+		SetHeader("Accept", "application/json, text/plain, */*").
+		SetHeader("Referer", fmt.Sprintf("%s/user/login", c.baseURL)).
+		SetHeader("Cookie", "locale=zh-CN").
+		SetBody(loginReq).
+		Post(url)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to send login request: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+	}
+
+	// 解析响应
+	var loginResp LoginResponse
+	if err := json.Unmarshal(resp.Body(), &loginResp); err != nil {
+		return nil, fmt.Errorf("failed to parse login response: %w", err)
+	}
+
+	// 如果登录成功，更新客户端的 token
+	if loginResp.Success {
+		c.httpClient.SetHeader("Authorization", "Bearer "+loginResp.Data.Token)
+	}
+
+	return &loginResp, nil
+}
+
+// LoginWithAutoOCR 自动识别验证码并登录，失败时最多重试3次
+func (c *Client) LoginWithAutoOCR(username, password string) (*LoginResponse, error) {
+	maxRetries := 3
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// 获取验证码
+		captchaResp, err := c.GetCaptcha()
+		if err != nil {
+			lastErr = fmt.Errorf("attempt %d: failed to get captcha: %w", attempt+1, err)
+			continue
+		}
+
+		// 从base64图片中提取图片数据
+		imgData := captchaResp.Data.Img
+		imgData = strings.TrimPrefix(imgData, "data:image/png;base64,")
+		imgData = strings.TrimPrefix(imgData, "data:image/jpeg;base64,")
+
+		// 识别验证码
+		captchaText, err := ocr.RecognizeBase64Image(imgData)
+		if err != nil {
+			lastErr = fmt.Errorf("attempt %d: failed to recognize captcha: %w", attempt+1, err)
+			continue
+		}
+
+		// 使用识别出的验证码进行登录
+		resp, err := c.Login(username, password, captchaText, captchaResp.Data.UUID)
+		if err != nil {
+			lastErr = fmt.Errorf("attempt %d: failed to login: %w", attempt+1, err)
+			continue
+		}
+
+		// 如果登录成功，直接返回结果
+		if resp.Success {
+			return resp, nil
+		}
+
+		// 如果登录失败但没有报错，记录失败原因
+		lastErr = fmt.Errorf("attempt %d: login failed: %s", attempt+1, resp.ErrorMessage)
+	}
+
+	return nil, fmt.Errorf("login failed after %d attempts, last error: %w", maxRetries, lastErr)
 }

@@ -6,9 +6,14 @@ import (
 
 	"github.com/bestk/dmxstart_auto_outbound/pkg/client"
 	"github.com/bestk/dmxstart_auto_outbound/pkg/config"
+	"github.com/bestk/dmxstart_auto_outbound/pkg/logger"
 )
 
 func main() {
+	logger.Init()
+
+	logger.Logger.Info("Starting application")
+
 	// Load configuration
 	cfg, err := config.LoadConfig("config.yaml")
 	if err != nil {
@@ -16,11 +21,7 @@ func main() {
 	}
 
 	// Create DMXSmart client
-	dmxClient := client.NewClient(&client.Config{
-		AccessToken: cfg.AccessToken,
-		WarehouseID: cfg.WarehouseID,
-		CustomerIDs: cfg.CustomerIDs,
-	})
+	dmxClient := client.NewClient(cfg)
 
 	// Get waiting pick orders
 	orders, err := dmxClient.GetWaitingPickOrders(1, 20)
