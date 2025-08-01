@@ -3,8 +3,8 @@ package ocr
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/bestk/dmxstart_auto_outbound/pkg/config"
@@ -23,24 +23,26 @@ func RecognizeBase64Image(base64Img string) (string, error) {
 		"base64_image": base64Img,
 	}
 
-	respData := struct {
+	result := struct {
 		Result string `json:"result"`
 	}{}
 
 	resp, err := resty.New().R().
 		SetLogger(logger.Logger).
 		SetDebug(config.Config.Debug).
-		SetBody(body).Post(config.Config.OcrEndpoint)
+		SetBody(body).
+		SetResult(&result).
+		Post(config.Config.OcrEndpoint)
+
 	if err != nil {
 		return "", fmt.Errorf("failed to post request: %w", err)
 	}
 
-	err = json.Unmarshal(resp.Body(), &respData)
-	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+	if resp.StatusCode() != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
-	return respData.Result, nil
+	return result.Result, nil
 }
 
 // RecognizeImage 识别图片字节数据

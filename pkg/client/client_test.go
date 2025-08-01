@@ -9,7 +9,6 @@ import (
 )
 
 func TestLoginWithAutoOCR(t *testing.T) {
-
 	logger.Init()
 	// 创建带有账号信息的配置
 	configPath := filepath.Join("..", "..", "config.yaml")
@@ -47,7 +46,6 @@ func TestLoginWithAutoOCR(t *testing.T) {
 	t.Logf("登录成功，token: %s", resp.Data.Token)
 }
 
-
 func TestValidateSession(t *testing.T) {
 	logger.Init()
 	configPath := filepath.Join("..", "..", "config.yaml")
@@ -65,6 +63,45 @@ func TestValidateSession(t *testing.T) {
 		return
 	}
 
-	t.Logf("ValidateSession() success")
+	t.Log("ValidateSession() success")
 }
 
+func TestGetWaitingPickOrders(t *testing.T) {
+	logger.Init()
+	configPath := filepath.Join("..", "..", "config.yaml")
+	config, err := config.LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	client := NewClient(config)
+	client.SetLogger(logger.Logger)
+
+	resp, err := client.GetWaitingPickOrders(1, 100, config.CustomerIDs)
+	if err != nil {
+		t.Errorf("GetWaitingPickOrders() error = %v", err)
+		return
+	}
+
+	t.Logf("GetWaitingPickOrders() success, total: %d, data: %+v", resp.Total, resp.Data)
+}
+
+func TestCreatePickupWave(t *testing.T) {
+	logger.Init()
+	configPath := filepath.Join("..", "..", "config.yaml")
+	config, err := config.LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	client := NewClient(config)
+	client.SetLogger(logger.Logger)
+
+	resp, err := client.CreatePickupWave(true, 1, true, config.CustomerIDs, "[BOT]")
+	if err != nil {
+		t.Errorf("CreatePickupWave() error = %v", err)
+		return
+	}
+
+	t.Logf("CreatePickupWave() success, id: %d", resp.Data.ID)
+}

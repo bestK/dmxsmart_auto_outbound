@@ -9,13 +9,13 @@ import (
 
 // Config represents the configuration structure
 type ConfigStruct struct {
-	Account     string   `yaml:"account"`
-	Password    string   `yaml:"password"`
-	AccessToken string   `yaml:"access_token"`
-	WarehouseID string   `yaml:"warehouse_id"`
-	CustomerIDs []string `yaml:"customer_ids"`
-	OcrEndpoint string   `yaml:"ocr_endpoint"`
-	Debug       bool     `yaml:"debug"`
+	Account     string  `yaml:"account"`
+	Password    string  `yaml:"password"`
+	AccessToken string  `yaml:"access_token"`
+	WarehouseID string  `yaml:"warehouse_id"`
+	CustomerIDs []int32 `yaml:"customer_ids"`
+	OcrEndpoint string  `yaml:"ocr_endpoint"`
+	Debug       bool    `yaml:"debug"`
 }
 
 var Config *ConfigStruct

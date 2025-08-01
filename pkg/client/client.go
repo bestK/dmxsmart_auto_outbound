@@ -95,7 +95,7 @@ func (c *Client) ValidateSession() error {
 }
 
 // GetWaitingPickOrders retrieves the list of waiting pick orders
-func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []string) (string, error) {
+func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []int32) (WaitingPickOrderResponse, error) {
 	urlStr := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/listWaitingPickOrder", c.baseURL)
 
 	params := url.Values{}
@@ -107,50 +107,63 @@ func (c *Client) GetWaitingPickOrders(page, pageSize int, customerIds []string) 
 	params.Set("keyword", "")
 
 	for _, customerId := range customerIds {
-		params.Add("customerIds[]", customerId)
+		params.Add("customerIds[]", string(customerId))
 	}
 
 	fullURL := fmt.Sprintf("%s?%s", urlStr, params.Encode())
+
+	var result WaitingPickOrderResponse
 
 	resp, err := c.httpClient.R().
 		SetBody(map[string]string{
 			"keyword": "",
 		}).
+		SetResult(&result).
 		Post(fullURL)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to get waiting pick orders: %w", err)
+		return WaitingPickOrderResponse{}, fmt.Errorf("failed to get waiting pick orders: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+		return WaitingPickOrderResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
-	return resp.String(), nil
+	return result, nil
 }
 
 // CreatePickupWave creates a new pickup wave
-func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool) (string, error) {
-	url := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/createPickupWave", c.baseURL)
+func (c *Client) CreatePickupWave(isAll bool, pickupType int, isOutbound bool, customerIds []int32, remark string) (CreatePickupWaveResponse, error) {
+	urlStr := fmt.Sprintf("%s/api/tenant/outbound/pickupwave/createPickupWave", c.baseURL)
+
+	params := url.Values{}
+	params.Set("isAll", fmt.Sprintf("%t", isAll))
+	params.Set("pickupType", fmt.Sprintf("%d", pickupType))
+	params.Set("isOutbound", fmt.Sprintf("%t", isOutbound))
+	params.Set("warehouseId", c.config.WarehouseID)
+	params.Set("remark", remark)
+
+	for _, customerId := range customerIds {
+		params.Add("customerIds[]", string(customerId))
+	}
+
+	fullURL := fmt.Sprintf("%s?%s", urlStr, params.Encode())
+
+	var result CreatePickupWaveResponse
 
 	resp, err := c.httpClient.R().
-		SetQueryParams(map[string]string{
-			"isAll":       fmt.Sprintf("%t", isAll),
-			"pickupType":  fmt.Sprintf("%d", pickupType),
-			"isOutbound":  fmt.Sprintf("%t", isOutbound),
-			"warehouseId": c.config.WarehouseID,
-		}).
-		Post(url)
+		SetResult(&result).
+		Post(fullURL)
 
 	if err != nil {
-		return "", fmt.Errorf("failed to create pickup wave: %w", err)
+		return CreatePickupWaveResponse{}, fmt.Errorf("failed to create pickup wave: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode())
+		return CreatePickupWaveResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
-	return resp.String(), nil
+	return result, nil
 }
 
 // GetCaptcha retrieves a captcha image
@@ -162,10 +175,13 @@ func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
 		c.httpClient.Header.Del("Authorization")
 	}
 
+	var captchaResp CaptchaResponse
+
 	resp, err := c.httpClient.R().
 		SetQueryParam("lang", "zh-CN").
 		SetHeader("Accept", "application/json, text/plain, */*").
 		SetHeader("Referer", fmt.Sprintf("%s/user/login", c.baseURL)).
+		SetResult(&captchaResp).
 		Get(url)
 
 	if err != nil {
@@ -174,11 +190,6 @@ func (c *Client) GetCaptcha() (*CaptchaResponse, error) {
 
 	if resp.StatusCode() != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
-	}
-
-	var captchaResp CaptchaResponse
-	if err := json.Unmarshal(resp.Body(), &captchaResp); err != nil {
-		return nil, fmt.Errorf("failed to parse captcha response: %w", err)
 	}
 
 	return &captchaResp, nil
@@ -205,12 +216,14 @@ func (c *Client) Login(username, password, captcha, uuid string) (*LoginResponse
 
 	url := fmt.Sprintf("%s/api/login/authenticate", c.baseURL)
 
+	var result LoginResponse
 	// 发送登录请求
 	resp, err := c.httpClient.R().
 		SetHeader("Accept", "application/json, text/plain, */*").
 		SetHeader("Referer", fmt.Sprintf("%s/user/login", c.baseURL)).
 		SetHeader("Cookie", "locale=zh-CN").
 		SetBody(loginReq).
+		SetResult(&result).
 		Post(url)
 
 	if err != nil {
@@ -221,20 +234,14 @@ func (c *Client) Login(username, password, captcha, uuid string) (*LoginResponse
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode())
 	}
 
-	// 解析响应
-	var loginResp LoginResponse
-	if err := json.Unmarshal(resp.Body(), &loginResp); err != nil {
-		return nil, fmt.Errorf("failed to parse login response: %w", err)
-	}
-
 	// 如果登录成功，更新客户端的 token
-	if loginResp.Success {
-		c.httpClient.SetHeader("Authorization", "Bearer "+loginResp.Data.Token)
-		c.config.AccessToken = loginResp.Data.Token
+	if result.Success {
+		c.httpClient.SetHeader("Authorization", "Bearer "+result.Data.Token)
+		c.config.AccessToken = result.Data.Token
 		config.SaveConfig()
 	}
 
-	return &loginResp, nil
+	return &result, nil
 }
 
 // LoginWithAutoOCR 自动识别验证码并登录，失败时最多重试3次
